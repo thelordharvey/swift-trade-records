@@ -14,7 +14,338 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          account_type: string
+          broker: string | null
+          created_at: string
+          currency: string
+          id: string
+          ingest_api_key_hash: string | null
+          ingest_key_prefix: string | null
+          is_archived: boolean
+          last_sync_at: string | null
+          name: string
+          platform: string
+          starting_balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type?: string
+          broker?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          ingest_api_key_hash?: string | null
+          ingest_key_prefix?: string | null
+          is_archived?: boolean
+          last_sync_at?: string | null
+          name: string
+          platform?: string
+          starting_balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          account_type?: string
+          broker?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          ingest_api_key_hash?: string | null
+          ingest_key_prefix?: string | null
+          is_archived?: boolean
+          last_sync_at?: string | null
+          name?: string
+          platform?: string
+          starting_balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_journal: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          lessons: string | null
+          mood_after: number | null
+          mood_before: number | null
+          post_market_review: string | null
+          pre_market_plan: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          lessons?: string | null
+          mood_after?: number | null
+          mood_before?: number | null
+          post_market_review?: string | null
+          pre_market_plan?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          lessons?: string | null
+          mood_after?: number | null
+          mood_before?: number | null
+          post_market_review?: string | null
+          pre_market_plan?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      import_jobs: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          errors: Json
+          id: string
+          rows_imported: number
+          rows_skipped: number
+          rows_total: number
+          source: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          errors?: Json
+          id?: string
+          rows_imported?: number
+          rows_skipped?: number
+          rows_total?: number
+          source: string
+          user_id?: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          errors?: Json
+          id?: string
+          rows_imported?: number
+          rows_skipped?: number
+          rows_total?: number
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          default_currency: string | null
+          default_risk_percent: number | null
+          display_name: string | null
+          id: string
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_currency?: string | null
+          default_risk_percent?: number | null
+          display_name?: string | null
+          id: string
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_currency?: string | null
+          default_risk_percent?: number | null
+          display_name?: string | null
+          id?: string
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      setups: {
+        Row: {
+          checklist: Json
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checklist?: Json
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          checklist?: Json
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trades: {
+        Row: {
+          account_id: string
+          closed_at: string | null
+          commission: number
+          confidence: number | null
+          created_at: string
+          direction: string
+          emotion_after: string | null
+          emotion_before: string | null
+          entry_price: number
+          exit_price: number | null
+          external_id: string | null
+          followed_plan: boolean | null
+          gross_pnl: number
+          id: string
+          is_demo: boolean
+          lot_size: number
+          mistake_tags: string[]
+          net_pnl: number | null
+          notes: string | null
+          opened_at: string
+          pips: number | null
+          planned_risk_amount: number | null
+          planned_rr: number | null
+          r_multiple: number | null
+          rating: number | null
+          session: string | null
+          setup_id: string | null
+          source: string
+          status: string
+          stop_loss: number | null
+          swap: number
+          symbol: string
+          tags: string[]
+          take_profit: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          closed_at?: string | null
+          commission?: number
+          confidence?: number | null
+          created_at?: string
+          direction: string
+          emotion_after?: string | null
+          emotion_before?: string | null
+          entry_price: number
+          exit_price?: number | null
+          external_id?: string | null
+          followed_plan?: boolean | null
+          gross_pnl?: number
+          id?: string
+          is_demo?: boolean
+          lot_size?: number
+          mistake_tags?: string[]
+          net_pnl?: number | null
+          notes?: string | null
+          opened_at?: string
+          pips?: number | null
+          planned_risk_amount?: number | null
+          planned_rr?: number | null
+          r_multiple?: number | null
+          rating?: number | null
+          session?: string | null
+          setup_id?: string | null
+          source?: string
+          status?: string
+          stop_loss?: number | null
+          swap?: number
+          symbol: string
+          tags?: string[]
+          take_profit?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          account_id?: string
+          closed_at?: string | null
+          commission?: number
+          confidence?: number | null
+          created_at?: string
+          direction?: string
+          emotion_after?: string | null
+          emotion_before?: string | null
+          entry_price?: number
+          exit_price?: number | null
+          external_id?: string | null
+          followed_plan?: boolean | null
+          gross_pnl?: number
+          id?: string
+          is_demo?: boolean
+          lot_size?: number
+          mistake_tags?: string[]
+          net_pnl?: number | null
+          notes?: string | null
+          opened_at?: string
+          pips?: number | null
+          planned_risk_amount?: number | null
+          planned_rr?: number | null
+          r_multiple?: number | null
+          rating?: number | null
+          session?: string | null
+          setup_id?: string | null
+          source?: string
+          status?: string
+          stop_loss?: number | null
+          swap?: number
+          symbol?: string
+          tags?: string[]
+          take_profit?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trades_setup_id_fkey"
+            columns: ["setup_id"]
+            isOneToOne: false
+            referencedRelation: "setups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
