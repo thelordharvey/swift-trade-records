@@ -97,10 +97,10 @@ export function TradeDialog({ open, onOpenChange, trade }: { open: boolean; onOp
       const parsed = schema.safeParse({ account_id: f.account_id, symbol: f.symbol, entry_price: entry ?? undefined, lot_size: num(f.lot) ?? 0 });
       const errs: Record<string, string> = {};
       if (!parsed.success) parsed.error.issues.forEach((i) => (errs[String(i.path[0])] = i.message));
-      if (live.slWrong) errs.sl = `Stop loss must be ${f.direction === "long" ? "below" : "above"} entry`;
-      if (live.tpWrong) errs.tp = `Take profit must be ${f.direction === "long" ? "above" : "below"} entry`;
-      if (!f.opened_at) errs.opened_at = "Open time required";
-      if (f.closed_at && f.opened_at && new Date(f.closed_at) < new Date(f.opened_at)) errs.closed_at = "Close must be after open";
+      if (live.slWrong) errs["sl"] = `Stop loss must be ${f.direction === "long" ? "below" : "above"} entry`;
+      if (live.tpWrong) errs["tp"] = `Take profit must be ${f.direction === "long" ? "above" : "below"} entry`;
+      if (!f.opened_at) errs["opened_at"] = "Open time required";
+      if (f.closed_at && f.opened_at && new Date(f.closed_at) < new Date(f.opened_at)) errs["closed_at"] = "Close must be after open";
       setErrors(errs);
       if (Object.keys(errs).length) throw new Error("Please fix the highlighted fields");
 

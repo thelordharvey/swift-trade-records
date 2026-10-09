@@ -35,7 +35,7 @@ function Analytics() {
 
   const rows = useMemo(() => {
     const m = new Map<string, Trade[]>();
-    closed.forEach((t) => dims[dim].key(t).forEach((k) => m.set(k, [...(m.get(k) ?? []), t])));
+    closed.forEach((t) => (dims[dim] ?? dims.symbol!).key(t).forEach((k) => m.set(k, [...(m.get(k) ?? []), t])));
     return Array.from(m.entries()).map(([k, ts]) => {
       const st = computeStats(ts);
       return { k, n: st.count, net: Math.round(st.net * 100) / 100, wr: st.winRate, pf: st.profitFactor, exp: st.expectancy };
@@ -79,7 +79,7 @@ function Analytics() {
           </ResponsiveContainer>
         </div>
         <table className="mt-4 w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground"><tr><th className="py-2">{dims[dim].label}</th><th>Trades</th><th>Win rate</th><th>Profit factor</th><th>Expectancy</th><th className="text-right">Net</th></tr></thead>
+          <thead className="text-left text-xs text-muted-foreground"><tr><th className="py-2">{dims[dim]?.label}</th><th>Trades</th><th>Win rate</th><th>Profit factor</th><th>Expectancy</th><th className="text-right">Net</th></tr></thead>
           <tbody className="divide-y">
             {rows.map((r) => (
               <tr key={r.k}>

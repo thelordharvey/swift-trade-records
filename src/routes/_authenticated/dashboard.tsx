@@ -22,7 +22,7 @@ function Dashboard() {
   const s = useMemo(() => computeStats(trades, startingBalance), [trades, startingBalance]);
   const byDay = useMemo(() => {
     const m = DAYS.map((d) => ({ d, pnl: 0 }));
-    trades.filter((t) => t.status === "closed").forEach((t) => (m[new Date(t.closed_at ?? t.opened_at).getDay()].pnl += Number(t.net_pnl ?? 0)));
+    trades.filter((t) => t.status === "closed").forEach((t) => { const e = m[new Date(t.closed_at ?? t.opened_at).getDay()]; if (e) e.pnl += Number(t.net_pnl ?? 0); });
     return m.slice(1, 6).map((x) => ({ ...x, pnl: Math.round(x.pnl * 100) / 100 }));
   }, [trades]);
 
@@ -43,7 +43,7 @@ function Dashboard() {
             <Kpi label="Win rate" value={fmtPct(s.winRate)} />
             <Kpi label="Profit factor" value={isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : "∞"} />
             <Kpi label="Expectancy / trade" value={fmtMoney(s.expectancy, currency)} tone={s.expectancy} />
-            <Kpi label="Avg R" value={s.avgR != null ? `${s.avgR.toFixed(2)}R` : "—"} tone={s.avgR ?? undefined} />
+            <Kpi label="Avg R" value={s.avgR != null ? `${s.avgR.toFixed(2)}R` : "—"} {...(s.avgR != null ? { tone: s.avgR } : {})} />
             <Kpi label="Max drawdown" value={`${fmtMoney(s.maxDD, currency)} (${fmtPct(s.maxDDPct)})`} />
             <Kpi label="Largest win" value={fmtMoney(s.largestWin, currency)} tone={s.largestWin} />
             <Kpi label="Largest loss" value={fmtMoney(s.largestLoss, currency)} tone={s.largestLoss} />
