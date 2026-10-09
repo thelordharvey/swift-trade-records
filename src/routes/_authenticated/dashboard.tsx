@@ -22,7 +22,7 @@ function Dashboard() {
   const s = useMemo(() => computeStats(trades, startingBalance), [trades, startingBalance]);
   const byDay = useMemo(() => {
     const m = DAYS.map((d) => ({ d, pnl: 0 }));
-    trades.filter((t) => t.status === "closed").forEach((t) => ({ const e = m[new Date(t.closed_at ?? t.opened_at).getDay()]; if (e) e.pnl += Number(t.net_pnl ?? 0); }));
+    trades.filter((t) => t.status === "closed").forEach((t) => { const e = m[new Date(t.closed_at ?? t.opened_at).getDay()]; if (e) e.pnl += Number(t.net_pnl ?? 0); });
     return m.slice(1, 6).map((x) => ({ ...x, pnl: Math.round(x.pnl * 100) / 100 }));
   }, [trades]);
 
