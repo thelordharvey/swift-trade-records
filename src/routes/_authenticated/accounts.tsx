@@ -176,11 +176,11 @@ function CsvImport({ accounts }: { accounts: Account[] }) {
   const [busy, setBusy] = useState(false);
 
   async function onFile(file: File) {
-    if (file.size > 5_000_000) return toast.error("File too large (max 5 MB)");
+    if (file.size > 5_000_000) { toast.error("File too large (max 5 MB)"); return; }
     const rows = parseCsv(await file.text());
-    if (rows.length < 2) return toast.error("CSV has no data rows");
+    if (rows.length < 2) { toast.error("CSV has no data rows"); return; }
     setData(rows);
-    const h = rows[0].map((x) => x.trim().toLowerCase());
+    const h = (rows[0] ?? []).map((x) => x.trim().toLowerCase());
     const guess: Record<string, string> = {};
     const alias: Record<string, string[]> = {
       external_id: ["external_id", "ticket", "position", "id", "order"], symbol: ["symbol", "pair", "instrument", "item"],
@@ -189,13 +189,13 @@ function CsvImport({ accounts }: { accounts: Account[] }) {
       take_profit: ["take_profit", "t / p", "tp", "t/p"], lot_size: ["lot_size", "volume", "size", "lots"], gross_pnl: ["gross_pnl", "profit", "pnl", "p&l"],
       commission: ["commission"], swap: ["swap"],
     };
-    FIELDS.forEach((f) => { const i = h.findIndex((x) => alias[f].includes(x)); if (i >= 0) guess[f] = String(i); });
+    FIELDS.forEach((f) => { const i = h.findIndex((x) => (alias[f] ?? []).includes(x)); if (i >= 0) guess[f] = String(i); });
     setMap(guess);
   }
 
   async function runImport() {
-    if (!data || !acc) return toast.error("Choose an account and file");
-    for (const f of ["symbol", "direction", "opened_at", "entry_price"]) if (!map[f]) return toast.error(`Map the "${f}" column`);
+    if (!data || !acc) { toast.error("Choose an account and file"); return; }
+    for (const f of ["symbol", "direction", "opened_at", "entry_price"]) if (!map[f]) { toast.error(`Map the "${f}" column`); return; }
     setBusy(true);
     try {
       const get = (r: string[], f: string) => (map[f] != null && map[f] !== "" ? r[Number(map[f])]?.trim() ?? "" : "");
@@ -256,7 +256,7 @@ function CsvImport({ accounts }: { accounts: Account[] }) {
               <div key={f} className="space-y-1"><Label className="text-xs">{f}</Label>
                 <Select value={map[f] ?? "none"} onValueChange={(v) => setMap({ ...map, [f]: v === "none" ? "" : v })}>
                   <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="none">—</SelectItem>{data[0].map((h, i) => <SelectItem key={i} value={String(i)}>{h || `Column ${i + 1}`}</SelectItem>)}</SelectContent>
+                  <SelectContent><SelectItem value="none">—</SelectItem>{(data[0] ?? []).map((h, i) => <SelectItem key={i} value={String(i)}>{h || `Column ${i + 1}`}</SelectItem>)}</SelectContent>
                 </Select></div>
             ))}
           </div>
