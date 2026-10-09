@@ -43,7 +43,7 @@ function Dashboard() {
             <Kpi label="Win rate" value={fmtPct(s.winRate)} />
             <Kpi label="Profit factor" value={isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : "∞"} />
             <Kpi label="Expectancy / trade" value={fmtMoney(s.expectancy, currency)} tone={s.expectancy} />
-            <Kpi label="Avg R" value={s.avgR != null ? `${s.avgR.toFixed(2)}R` : "—"} tone={s.avgR ?? undefined} />
+            <Kpi label="Avg R" value={s.avgR != null ? `${s.avgR.toFixed(2)}R` : "—"} {...(s.avgR != null ? { tone: s.avgR } : {})} />
             <Kpi label="Max drawdown" value={`${fmtMoney(s.maxDD, currency)} (${fmtPct(s.maxDDPct)})`} />
             <Kpi label="Largest win" value={fmtMoney(s.largestWin, currency)} tone={s.largestWin} />
             <Kpi label="Largest loss" value={fmtMoney(s.largestLoss, currency)} tone={s.largestLoss} />

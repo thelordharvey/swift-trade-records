@@ -40,7 +40,7 @@ function AccountsPage() {
   const create = useMutation({
     mutationFn: async () => {
       const p = accSchema.safeParse({ ...f, currency: f.currency.toUpperCase(), starting_balance: Number(f.starting_balance) });
-      if (!p.success) throw new Error(p.error.issues[0].message);
+      if (!p.success) throw new Error(p.error.issues[0]?.message ?? "Invalid input");
       const { error } = await supabase.from("accounts").insert({ ...p.data, platform: f.platform, account_type: f.account_type });
       if (error) throw error;
     },
