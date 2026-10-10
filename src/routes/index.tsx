@@ -5,9 +5,9 @@ import { Activity, CalendarDays, Plug, LineChart, BookOpen, ShieldCheck } from "
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "EdgeLog — The trading journal that finds your edge" },
+      { title: "LordRosen — The trading journal that finds your edge" },
       { name: "description", content: "Log, sync and analyse your forex, gold, indices and crypto trades. Connect MT4/MT5 or any broker via API." },
-      { property: "og:title", content: "EdgeLog — Trading Journal" },
+      { property: "og:title", content: "LordRosen — Trading Journal" },
       { property: "og:description", content: "Sync your broker, journal every trade, and see what actually makes you money." },
     ],
   }),
@@ -27,7 +27,7 @@ function Landing() {
   return (
     <div className="min-h-screen bg-hero">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <span className="text-lg font-bold tracking-tight">Edge<span className="text-gold">Log</span></span>
+        <span className="font-mono text-base font-semibold tracking-[0.25em]">LORD<span className="text-primary">ROSEN</span></span>
         <Button asChild variant="outline"><Link to="/auth">Sign in</Link></Button>
       </header>
       <main className="mx-auto max-w-6xl px-6">

@@ -7,7 +7,7 @@ export function PageHeader({ title, sub, action }: { title: string; sub?: string
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gold">{title}</h1>
+        <h1 className="label-mono text-sm text-primary">{title}</h1>
         {sub && <p className="mt-1 text-sm text-muted-foreground">{sub}</p>}
       </div>
       {action}
@@ -17,19 +17,20 @@ export function PageHeader({ title, sub, action }: { title: string; sub?: string
 
 export function Card({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("card-glow rounded-xl border bg-card p-5", className)}>
-      {title && <h2 className="mb-4 text-sm font-semibold text-muted-foreground">{title}</h2>}
+    <section className={cn("card-glow rounded-2xl border bg-card/80 p-6 backdrop-blur", className)}>
+      {title && <h2 className="label-mono mb-6 font-semibold text-primary">{title}</h2>}
       {children}
     </section>
   );
 }
 
-export function Kpi({ label, value, tone }: { label: string; value: string; tone?: number }) {
+export function Kpi({ label, value, tone, highlight, big }: { label: string; value: string; tone?: number; highlight?: boolean; big?: boolean }) {
   return (
-    <div className="card-glow rounded-xl border bg-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("num mt-1 text-xl font-semibold", tone != null && tone > 0 && "text-profit", tone != null && tone < 0 && "text-loss")}>
-        {tone != null && tone > 0 ? "▲ " : tone != null && tone < 0 ? "▼ " : ""}{value}
+    <div className={cn("card-glow rounded-2xl border p-6 backdrop-blur", highlight ? "border-primary/30 bg-primary/10" : "bg-card/80")}>
+      <p className="label-mono font-semibold text-muted-foreground">{label}</p>
+      <p className={cn("display-num mt-5 font-bold leading-none", big ? "text-5xl" : "text-2xl",
+        highlight ? "text-primary" : tone != null && tone > 0 ? "text-profit" : tone != null && tone < 0 ? "text-loss" : "text-foreground")}>
+        {value}
       </p>
     </div>
   );

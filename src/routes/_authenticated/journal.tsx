@@ -15,7 +15,7 @@ import { Card, ErrorState, LoadingGrid, PageHeader, pnlClass } from "@/component
 import { useTradeDialog } from "@/components/AppShell";
 
 export const Route = createFileRoute("/_authenticated/journal")({
-  head: () => ({ meta: [{ title: "Journal — EdgeLog" }, { name: "description", content: "Daily pre-market plans and post-market reviews." }] }),
+  head: () => ({ meta: [{ title: "Journal — LordRosen" }, { name: "description", content: "Daily pre-market plans and post-market reviews." }] }),
   component: JournalPage,
 });
 

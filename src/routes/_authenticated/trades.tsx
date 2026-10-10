@@ -11,7 +11,7 @@ import { useTradeDialog } from "@/components/AppShell";
 import type { Trade } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/trades")({
-  head: () => ({ meta: [{ title: "Trades — EdgeLog" }, { name: "description", content: "All your trades, searchable and sortable." }] }),
+  head: () => ({ meta: [{ title: "Trades — LordRosen" }, { name: "description", content: "All your trades, searchable and sortable." }] }),
   component: TradesPage,
 });
 
@@ -39,7 +39,7 @@ function TradesPage() {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = "edgelog-trades.csv"; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = "lordrosen-trades.csv"; a.click(); URL.revokeObjectURL(url);
   }
 
   const H = ({ k, children }: { k: Key; children: string }) => (

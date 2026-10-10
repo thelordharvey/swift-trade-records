@@ -11,9 +11,9 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — EdgeLog" },
-      { name: "description", content: "Sign in or create your EdgeLog trading journal account." },
-      { property: "og:title", content: "Sign in — EdgeLog" },
+      { title: "Sign in — LordRosen" },
+      { name: "description", content: "Sign in or create your LordRosen trading journal account." },
+      { property: "og:title", content: "Sign in — LordRosen" },
       { property: "og:description", content: "Access your trading journal." },
     ],
   }),
@@ -75,7 +75,7 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-hero px-4">
       <div className="w-full max-w-sm rounded-xl border bg-card p-8">
-        <h1 className="text-2xl font-bold">Edge<span className="text-gold">Log</span></h1>
+        <h1 className="font-mono text-xl font-semibold tracking-[0.25em]">LORD<span className="text-primary">ROSEN</span></h1>
         <p className="mt-1 text-sm text-muted-foreground">{mode === "signin" ? "Welcome back, trader." : "Create your journal."}</p>
         {sent ? (
           <p className="mt-6 rounded-md border bg-muted p-4 text-sm">Check your inbox to confirm your email, then sign in.</p>
