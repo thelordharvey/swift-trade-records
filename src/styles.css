@@ -107,7 +107,7 @@
 }
 @utility bg-hero { background-image: var(--gradient-hero); }
 
-@utility font-display { font-family: var(--font-display); letter-spacing: -0.04em; }
+@utility display-num { font-family: var(--font-display); letter-spacing: -0.04em; }
 @utility label-mono {
   font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.28em; font-size: 0.68rem;
 }

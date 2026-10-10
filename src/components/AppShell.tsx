@@ -1,10 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, ListOrdered, CalendarDays, BarChart3, BookOpen, Plug, LogOut, Plus } from "lucide-react";
+import { LayoutDashboard, ListOrdered, CalendarDays, BarChart3, BookOpen, Plug, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterProvider, useFilters, type Range } from "@/lib/filters";
 import { accountsQuery, tradesQuery, type Trade } from "@/lib/queries";
@@ -16,7 +15,7 @@ const nav = [
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/journal", label: "Journal", icon: BookOpen },
-  { to: "/accounts", label: "Accounts & Sync", icon: Plug },
+  { to: "/accounts", label: "Accounts", icon: Plug },
 ] as const;
 
 const TradeCtx = createContext<{ openTrade: (t?: Trade | null) => void } | null>(null);
@@ -70,33 +69,32 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <FilterProvider>
       <TradeCtx.Provider value={{ openTrade }}>
-        <div className="flex min-h-screen">
-          <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar p-4 md:flex">
-            <Link to="/dashboard" className="mb-8 px-2 text-lg font-bold">Edge<span className="text-gold">Log</span></Link>
-            <nav className="flex-1 space-y-1">
-              {nav.map((n) => (
-                <Link key={n.to} to={n.to} className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground" activeProps={{ className: "bg-sidebar-accent text-foreground" }}>
-                  <n.icon className="h-4 w-4" aria-hidden /> {n.label}
-                </Link>
-              ))}
-            </nav>
-            <Button onClick={() => openTrade()} className="mb-2"><Plus className="h-4 w-4" /> New trade <kbd className="num ml-auto text-xs opacity-70">N</kbd></Button>
-            <Button variant="ghost" onClick={signOut} className="justify-start text-muted-foreground"><LogOut className="h-4 w-4" /> Sign out</Button>
-          </aside>
-          <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
-            <FilterBar />
-            <main className="flex-1 p-4 md:p-8">{children}</main>
-          </div>
+        <div className="min-h-screen">
+          <header className="sticky top-0 z-40 border-b bg-background/70 backdrop-blur">
+            <div className="mx-auto flex max-w-[1180px] items-center gap-6 px-6 py-5">
+              <Link to="/dashboard" className="font-mono text-base font-semibold tracking-[0.25em]">LORD<span className="text-primary">ROSEN</span></Link>
+              <nav className="hidden flex-1 items-center gap-5 lg:flex">
+                {nav.map((n) => (
+                  <Link key={n.to} to={n.to} className="label-mono text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "text-primary" }}>{n.label}</Link>
+                ))}
+              </nav>
+              <div className="ml-auto flex items-center gap-3">
+                <button onClick={signOut} className="label-mono hidden px-3 text-muted-foreground hover:text-foreground sm:inline">Sign out</button>
+                <Link to="/accounts" className="label-mono inline-flex items-center gap-2 rounded-md border border-input px-5 py-3 text-foreground hover:border-primary"><Plug className="h-4 w-4" /> Connect</Link>
+                <button onClick={() => openTrade()} className="label-mono inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" /> Log trade</button>
+              </div>
+            </div>
+          </header>
+          <FilterBar />
+          <main className="mx-auto max-w-[1180px] px-6 py-6 pb-24 lg:pb-10">{children}</main>
         </div>
-        {/* mobile nav */}
-        <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t bg-sidebar py-2 md:hidden">
-          {nav.slice(0, 5).map((n) => (
-            <Link key={n.to} to={n.to} aria-label={n.label} className="p-2 text-muted-foreground" activeProps={{ className: "text-gold" }}>
+        <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t bg-background/90 py-2 backdrop-blur lg:hidden">
+          {nav.map((n) => (
+            <Link key={n.to} to={n.to} aria-label={n.label} className="p-2 text-muted-foreground" activeProps={{ className: "text-primary" }}>
               <n.icon className="h-5 w-5" />
             </Link>
           ))}
         </nav>
-        <Button size="icon" aria-label="New trade" onClick={() => openTrade()} className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full md:hidden"><Plus /></Button>
         <TradeDialog open={open} onOpenChange={setOpen} trade={editing} />
       </TradeCtx.Provider>
     </FilterProvider>
@@ -109,7 +107,7 @@ function FilterBar() {
   const { data: trades = [] } = useQuery(tradesQuery());
   const symbols = Array.from(new Set(trades.map((t) => t.symbol))).sort();
   return (
-    <div className="sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b bg-background/85 px-4 py-3 backdrop-blur md:px-8">
+    <div className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-2 px-6 pt-5">
       <Select value={filters.accountId} onValueChange={(v) => set({ accountId: v })}>
         <SelectTrigger className="h-8 w-40" aria-label="Account"><SelectValue /></SelectTrigger>
         <SelectContent>
