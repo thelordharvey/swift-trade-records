@@ -11,9 +11,9 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — EdgeLog" },
+      { title: "Sign in — LordRosen" },
       { name: "description", content: "Sign in or create your EdgeLog trading journal account." },
-      { property: "og:title", content: "Sign in — EdgeLog" },
+      { property: "og:title", content: "Sign in — LordRosen" },
       { property: "og:description", content: "Access your trading journal." },
     ],
   }),

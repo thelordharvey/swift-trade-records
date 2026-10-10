@@ -15,7 +15,7 @@ import { calcPips, plannedRR, sessionOf } from "@/lib/calc";
 import { Card, ErrorState, LoadingGrid, PageHeader } from "@/components/ui-kit";
 
 export const Route = createFileRoute("/_authenticated/accounts")({
-  head: () => ({ meta: [{ title: "Accounts & Broker Sync — EdgeLog" }, { name: "description", content: "Connect MT4/MT5 and other brokers, import CSV." }] }),
+  head: () => ({ meta: [{ title: "Accounts & Broker Sync — LordRosen" }, { name: "description", content: "Connect MT4/MT5 and other brokers, import CSV." }] }),
   component: AccountsPage,
 });
 

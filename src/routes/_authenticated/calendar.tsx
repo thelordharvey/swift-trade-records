@@ -11,7 +11,7 @@ import { useTradeDialog } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
-  head: () => ({ meta: [{ title: "Calendar — EdgeLog" }, { name: "description", content: "Daily P&L calendar." }] }),
+  head: () => ({ meta: [{ title: "Calendar — LordRosen" }, { name: "description", content: "Daily P&L calendar." }] }),
   component: CalendarPage,
 });
 

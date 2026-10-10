@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 const PIE = ["var(--primary)", "var(--profit)", "var(--chart-5)", "var(--loss)"];
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — EdgeLog" }, { name: "description", content: "Your trading performance at a glance." }] }),
+  head: () => ({ meta: [{ title: "Dashboard — LordRosen" }, { name: "description", content: "Your trading performance at a glance." }] }),
   component: Dashboard,
 });
 
@@ -38,7 +38,7 @@ function Dashboard() {
   if (isLoading) return <LoadingGrid />;
   if (error) return <ErrorState error={error} retry={refetch} />;
   if (accounts.length === 0)
-    return <><PageHeader title="Dashboard" /><Empty title="Welcome to EdgeLog" text="Add your first trading account, then log or sync trades." action={<Button asChild><Link to="/accounts">Add account</Link></Button>} /></>;
+    return <><PageHeader title="Dashboard" /><Empty title="Welcome to LordRosen" text="Add your first trading account, then log or sync trades." action={<Button asChild><Link to="/accounts">Add account</Link></Button>} /></>;
 
   return (
     <>

@@ -79,9 +79,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 ))}
               </nav>
               <div className="ml-auto flex items-center gap-3">
-                <button onClick={signOut} className="label-mono hidden px-3 text-muted-foreground hover:text-foreground sm:inline">Sign out</button>
-                <Link to="/accounts" className="label-mono inline-flex items-center gap-2 rounded-md border border-input px-5 py-3 text-foreground hover:border-primary"><Plug className="h-4 w-4" /> Connect</Link>
-                <button onClick={() => openTrade()} className="label-mono inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" /> Log trade</button>
+                <button onClick={signOut} className="label-mono hidden whitespace-nowrap px-3 text-muted-foreground hover:text-foreground sm:inline">Sign out</button>
+                <Link to="/accounts" className="label-mono inline-flex whitespace-nowrap items-center gap-2 rounded-md border border-input px-5 py-3 text-foreground hover:border-primary"><Plug className="h-4 w-4" /> Connect</Link>
+                <button onClick={() => openTrade()} className="label-mono inline-flex whitespace-nowrap items-center gap-2 rounded-md bg-primary px-6 py-3 text-primary-foreground hover:bg-primary/90"><Plus className="h-4 w-4" /> Log trade</button>
               </div>
             </div>
           </header>

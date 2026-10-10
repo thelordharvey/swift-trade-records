@@ -5,9 +5,9 @@ import { Activity, CalendarDays, Plug, LineChart, BookOpen, ShieldCheck } from "
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "EdgeLog — The trading journal that finds your edge" },
+      { title: "LordRosen — The trading journal that finds your edge" },
       { name: "description", content: "Log, sync and analyse your forex, gold, indices and crypto trades. Connect MT4/MT5 or any broker via API." },
-      { property: "og:title", content: "EdgeLog — Trading Journal" },
+      { property: "og:title", content: "LordRosen — Trading Journal" },
       { property: "og:description", content: "Sync your broker, journal every trade, and see what actually makes you money." },
     ],
   }),

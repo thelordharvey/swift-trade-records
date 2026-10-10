@@ -9,7 +9,7 @@ import type { Trade } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
-  head: () => ({ meta: [{ title: "Analytics — EdgeLog" }, { name: "description", content: "Performance breakdowns by symbol, session, hour and behaviour." }] }),
+  head: () => ({ meta: [{ title: "Analytics — LordRosen" }, { name: "description", content: "Performance breakdowns by symbol, session, hour and behaviour." }] }),
   component: Analytics,
 });
 
