@@ -1,12 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useFilteredTrades } from "@/hooks/use-filtered-trades";
 import { computeStats, fmtMoney, fmtPct } from "@/lib/calc";
 import { Card, Empty, ErrorState, Kpi, LoadingGrid, PageHeader, pnlClass } from "@/components/ui-kit";
 import { useTradeDialog } from "@/components/AppShell";
+import { assetClass } from "@/lib/calc";
+import { cn } from "@/lib/utils";
+
+const PIE = ["var(--primary)", "var(--profit)", "var(--chart-5)", "var(--loss)"];
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — EdgeLog" }, { name: "description", content: "Your trading performance at a glance." }] }),
@@ -26,6 +30,11 @@ function Dashboard() {
     return m.slice(1, 6).map((x) => ({ ...x, pnl: Math.round(x.pnl * 100) / 100 }));
   }, [trades]);
 
+  const assets = useMemo(() => {
+    const m = new Map<string, number>();
+    trades.forEach((t) => { const k = assetClass(t.symbol); m.set(k, (m.get(k) ?? 0) + 1); });
+    return Array.from(m, ([n, v]) => ({ n, v }));
+  }, [trades]);
   if (isLoading) return <LoadingGrid />;
   if (error) return <ErrorState error={error} retry={refetch} />;
   if (accounts.length === 0)
@@ -33,36 +42,67 @@ function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" sub={`${s.count} closed trades · ${s.openCount} open`} action={<Button onClick={() => openTrade()}>Log trade</Button>} />
+      
       {s.count === 0 ? (
         <Empty title="No closed trades yet" text="Log a trade or connect your broker to see your stats." action={<Button onClick={() => openTrade()}>Log first trade</Button>} />
       ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Kpi label="Net P&L" value={fmtMoney(s.net, currency)} tone={s.net} />
-            <Kpi label="Win rate" value={fmtPct(s.winRate)} />
-            <Kpi label="Profit factor" value={isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : "∞"} />
-            <Kpi label="Expectancy / trade" value={fmtMoney(s.expectancy, currency)} tone={s.expectancy} />
-            <Kpi label="Avg R" value={s.avgR != null ? `${s.avgR.toFixed(2)}R` : "—"} {...(s.avgR != null ? { tone: s.avgR } : {})} />
-            <Kpi label="Max drawdown" value={`${fmtMoney(s.maxDD, currency)} (${fmtPct(s.maxDDPct)})`} />
-            <Kpi label="Largest win" value={fmtMoney(s.largestWin, currency)} tone={s.largestWin} />
-            <Kpi label="Largest loss" value={fmtMoney(s.largestLoss, currency)} tone={s.largestLoss} />
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+            <Kpi big highlight label="Net PnL" value={(s.net >= 0 ? "+" : "") + fmtMoney(s.net, currency)} />
+            <Kpi big label="Win rate" value={fmtPct(s.winRate)} />
+            <Kpi big label="Profit factor" value={isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : "∞"} />
+            <Kpi big label="Open trades" value={String(s.openCount)} />
           </div>
-          <Card title="Equity curve">
-            <div className="h-72">
-              <ResponsiveContainer>
-                <AreaChart data={s.equity} onClick={(e) => { const p = e?.activePayload?.[0]?.payload; const t = p && trades.find((x) => x.id === p.id); if (t) openTrade(t); }}>
-                  <defs><linearGradient id="eq" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--primary)" stopOpacity={0.5} /><stop offset="100%" stopColor="var(--primary)" stopOpacity={0} /></linearGradient></defs>
-                  <XAxis dataKey="i" stroke="var(--muted-foreground)" fontSize={11} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} domain={["auto", "auto"]} />
-                  <Tooltip {...tip} formatter={(v: number) => fmtMoney(v, currency)} labelFormatter={(i) => `Trade #${i}`} />
-                  <Area type="monotone" dataKey="balance" stroke="var(--primary)" fill="url(#eq)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="drawdown" stroke="var(--loss)" fill="var(--loss)" fillOpacity={0.15} strokeWidth={1} />
-                </AreaChart>
-              </ResponsiveContainer>
+          <div className="grid gap-6 lg:grid-cols-[1fr_372px]">
+            <Card title="Equity curve">
+              <div className="h-80">
+                <ResponsiveContainer>
+                  <AreaChart data={[{ i: 0, id: "", balance: startingBalance, date: "" }, ...s.equity]} onClick={(e) => { const p = e?.activePayload?.[0]?.payload; const t = p && trades.find((x) => x.id === p.id); if (t) openTrade(t); }}>
+                    <defs><linearGradient id="eq" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} /><stop offset="100%" stopColor="var(--primary)" stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid stroke="var(--border)" strokeDasharray="2 6" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={(d) => (d ? format(new Date(d), "MMM d") : "")} stroke="var(--muted-foreground)" fontSize={10} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--muted-foreground)" fontSize={10} fontFamily="var(--font-mono)" tickLine={false} axisLine={false} domain={["auto", "auto"]} tickFormatter={(v) => "$" + Math.round(v)} width={56} />
+                    <Tooltip {...tip} formatter={(v: number) => fmtMoney(v, currency)} labelFormatter={(d) => (d ? format(new Date(d), "dd MMM yyyy HH:mm") : "Start")} />
+                    <Area type="stepAfter" dataKey="balance" stroke="var(--primary)" fill="url(#eq)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+            <div className="space-y-6">
+              <Card title="Active adapters">
+                <div className="space-y-4">
+                  {accounts.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{a.broker || a.name} / {a.platform}</p>
+                        <p className="label-mono mt-1 truncate text-muted-foreground">{a.name}</p>
+                      </div>
+                      <span className={cn("label-mono font-semibold", a.ingest_key_prefix ? "text-primary" : "text-muted-foreground")}>{a.ingest_key_prefix ? "Connected" : "Manual"}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card title="Asset class">
+                <div className="flex items-center gap-6">
+                  <div className="h-44 w-44 shrink-0">
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie data={assets} dataKey="v" nameKey="n" innerRadius={58} outerRadius={72} stroke="none" paddingAngle={2}>
+                          {assets.map((x, i) => <Cell key={x.n} fill={PIE[i % PIE.length]} />)}
+                        </Pie>
+                        <Tooltip {...tip} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ul className="space-y-3">
+                    {assets.map((x, i) => (
+                      <li key={x.n} className="label-mono flex items-center gap-2 text-muted-foreground"><span className="h-2 w-2 rounded-full" style={{ background: PIE[i % PIE.length] }} />{x.n}</li>
+                    ))}
+                  </ul>
+                </div>
+              </Card>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">Click a point to open that trade.</p>
-          </Card>
+          </div>
           <div className="grid gap-4 lg:grid-cols-3">
             <Card title="Win / Loss">
               <div className="h-52">
