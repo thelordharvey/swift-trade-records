@@ -35,7 +35,7 @@ function Analytics() {
 
   const rows = useMemo(() => {
     const m = new Map<string, Trade[]>();
-    closed.forEach((t) => (dims[dim] ?? dims.symbol!).key(t).forEach((k) => m.set(k, [...(m.get(k) ?? []), t])));
+    closed.forEach((t) => (dims[dim] ?? dims["symbol"]!).key(t).forEach((k) => m.set(k, [...(m.get(k) ?? []), t])));
     return Array.from(m.entries()).map(([k, ts]) => {
       const st = computeStats(ts);
       return { k, n: st.count, net: Math.round(st.net * 100) / 100, wr: st.winRate, pf: st.profitFactor, exp: st.expectancy };
