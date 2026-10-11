@@ -112,7 +112,7 @@ function FilterBar() {
         <SelectTrigger className="h-8 w-40" aria-label="Account"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All accounts</SelectItem>
-          {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+          {accounts.filter((a) => !a.is_archived).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={filters.range} onValueChange={(v) => set({ range: v as Range })}>

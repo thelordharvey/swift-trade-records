@@ -36,3 +36,31 @@ describe("calc", () => {
     expect(s.maxDD).toBe(50);
   });
 });
+
+import { normalizeSymbol, closedTradeR } from "./calc";
+describe("normalizeSymbol", () => {
+  it("strips broker suffixes", () => {
+    expect(normalizeSymbol("EURUSDm")).toBe("EURUSD");
+    expect(normalizeSymbol("EURUSD.pro")).toBe("EURUSD");
+    expect(normalizeSymbol("xauusd.a")).toBe("XAUUSD");
+    expect(normalizeSymbol("GOLD#")).toBe("GOLD");
+    expect(normalizeSymbol("US30.cash")).toBe("US30");
+    expect(normalizeSymbol("XAGUSDc")).toBe("XAGUSD");
+    expect(normalizeSymbol(" gbpjpy ")).toBe("GBPJPY");
+  });
+  it("keeps non-currency symbols intact", () => {
+    expect(normalizeSymbol("NAS100")).toBe("NAS100");
+    expect(normalizeSymbol("BTCUSDT")).toBe("BTCUSDT");
+    expect(normalizeSymbol("GER40")).toBe("GER40");
+  });
+});
+describe("closedTradeR", () => {
+  it("price-based R", () => {
+    expect(closedTradeR("long", 100, 99, 102)).toBe(2);
+    expect(closedTradeR("short", 100, 101, 101)).toBe(-1);
+    expect(closedTradeR("long", 100, null, 102)).toBeNull();
+    expect(closedTradeR("long", 100, 0, 102)).toBeNull();
+    expect(closedTradeR("long", 100, 99, null)).toBeNull();
+    expect(closedTradeR("long", 100, 100, 102)).toBeNull();
+  });
+});

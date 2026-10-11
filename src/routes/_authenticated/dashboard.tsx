@@ -71,7 +71,7 @@ function Dashboard() {
             <div className="space-y-6">
               <Card title="Active adapters">
                 <div className="space-y-4">
-                  {accounts.map((a) => (
+                  {accounts.filter((a) => !a.is_archived).map((a) => (
                     <div key={a.id} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{a.broker || a.name} / {a.platform}</p>
