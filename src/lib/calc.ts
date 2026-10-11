@@ -121,3 +121,23 @@ export function fmtMoney(n: number | null | undefined, currency = "USD") {
   }
 }
 export const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
+
+const CCY = new Set(["EUR","USD","GBP","JPY","CHF","AUD","CAD","NZD","SEK","NOK","MXN","ZAR","TRY","SGD","HKD","PLN","CNH"]);
+
+/** Uppercase and strip broker suffixes: EURUSDm, EURUSD.pro, XAUUSD.a, GOLD#, US30.cash. */
+export function normalizeSymbol(raw: string): string {
+  const up = String(raw ?? "").trim().toUpperCase();
+  const base = up.split(/[^A-Z0-9]/).find((p) => p.length > 0) ?? up;
+  const six = base.slice(0, 6);
+  if (/^[A-Z]{6}$/.test(six)) {
+    const a = six.slice(0, 3), b = six.slice(3);
+    if ((CCY.has(a) || a === "XAU" || a === "XAG") && CCY.has(b)) return six;
+  }
+  return base;
+}
+
+/** Price-based R for a closed trade with a stop loss; null otherwise. */
+export function closedTradeR(dir: Dir, entry: number, sl: number | null | undefined, exit: number | null | undefined) {
+  if (exit == null || sl == null || !sl) return null;
+  return realizedRR(dir, entry, sl, exit);
+}

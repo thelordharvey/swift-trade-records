@@ -1,18 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Copy, KeyRound, Upload } from "lucide-react";
+import { Archive, Copy, Download, KeyRound, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { accountsQuery, type Account } from "@/lib/queries";
-import { calcPips, plannedRR, sessionOf } from "@/lib/calc";
+import { calcPips, closedTradeR, normalizeSymbol, plannedRR, sessionOf } from "@/lib/calc";
 import { Card, ErrorState, LoadingGrid, PageHeader } from "@/components/ui-kit";
+
+function SyncBadge({ at, now }: { at: string | null; now: number }) {
+  const age = at ? now - new Date(at).getTime() : Infinity;
+  const [label, cls] = age < 5 * 60_000 ? ["Live", "border-emerald-500/50 text-emerald-400"] : age < 86_400_000 ? ["Idle", "border-gold/50 text-gold"] : ["Never synced", "border-input text-muted-foreground"];
+  return <span className={`label-mono ml-1 rounded border px-1.5 py-0.5 text-[10px] ${cls}`}>{label}</span>;
+}
 
 export const Route = createFileRoute("/_authenticated/accounts")({
   head: () => ({ meta: [{ title: "Accounts & Broker Sync — LordRosen" }, { name: "description", content: "Connect MT4/MT5 and other brokers, import CSV." }] }),
@@ -60,10 +67,45 @@ function AccountsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
+  const archive = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("accounts").update({ is_archived: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["accounts"] }); toast.success("Account archived"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+  const jobs = useQuery({
+    queryKey: ["import_jobs"],
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("import_jobs").select("*").order("created_at", { ascending: false }).limit(300);
+      if (error) throw error;
+      return data;
+    },
+  });
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => { setNow(Date.now()); qc.invalidateQueries({ queryKey: ["accounts"] }); }, 30_000); return () => clearInterval(t); }, [qc]);
+
   if (q.isLoading) return <LoadingGrid />;
   if (q.error) return <ErrorState error={q.error} retry={() => q.refetch()} />;
   const accounts = q.data ?? [];
-  const endpoint = typeof window !== "undefined" ? `${window.location.origin}/api/public/ingest` : "/api/public/ingest";
+  const active = accounts.filter((a) => !a.is_archived);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const isPreview = typeof window !== "undefined" && window.location.hostname.includes("id-preview");
+  const endpoint = `${origin}/api/public/ingest`;
+
+  async function downloadEa(ext: "mq5" | "mq4") {
+    try {
+      const res = await fetch(`/ea/EdgeLogSync.${ext}`);
+      if (!res.ok) throw new Error();
+      const text = (await res.text()).split("https://YOUR-APP.lovable.app").join(window.location.origin);
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = `EdgeLogSync.${ext}`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error("Download failed — try again"); }
+  }
 
   return (
     <>
@@ -87,16 +129,26 @@ function AccountsPage() {
         <Card title="Your accounts">
           {accounts.length === 0 ? <p className="text-sm text-muted-foreground">No accounts yet.</p> : (
             <div className="space-y-3">
-              {accounts.map((a) => (
+              {active.map((a) => (
                 <div key={a.id} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="font-semibold">{a.name} <span className="text-xs text-muted-foreground">{a.platform} · {a.account_type} · {a.currency}</span></p>
+                      <p className="font-semibold">{a.name} <SyncBadge at={a.last_sync_at} now={now} /> <span className="text-xs text-muted-foreground">{a.platform} · {a.account_type} · {a.currency}</span></p>
                       <p className="text-xs text-muted-foreground">
                         {a.ingest_key_prefix ? `Key ${a.ingest_key_prefix}… · ${a.last_sync_at ? "last sync " + formatDistanceToNow(new Date(a.last_sync_at)) + " ago" : "never synced"}` : "Not connected"}
                       </p>
                     </div>
+                    <div className="flex gap-1">
                     <Button size="sm" variant="outline" onClick={() => genKey.mutate(a)} disabled={genKey.isPending}><KeyRound className="h-4 w-4" />{a.ingest_key_prefix ? "Rotate key" : "Connect"}</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild><Button size="icon" variant="ghost" aria-label="Archive account"><Archive className="h-4 w-4" /></Button></AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>Archive {a.name}?</AlertDialogTitle>
+                          <AlertDialogDescription>It will be hidden from account pickers. Its trades are kept.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => archive.mutate(a.id)}>Archive</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    </div>
                   </div>
                   {newKey?.id === a.id && (
                     <div className="mt-3 rounded-md border border-gold/50 bg-gold/10 p-2">
@@ -105,6 +157,14 @@ function AccountsPage() {
                         <Button size="icon" variant="ghost" aria-label="Copy key" onClick={() => { navigator.clipboard.writeText(newKey.key); toast.success("Copied"); }}><Copy className="h-4 w-4" /></Button></div>
                     </div>
                   )}
+                  <details className="mt-2">
+                    <summary className="label-mono cursor-pointer text-muted-foreground">Sync history</summary>
+                    {(jobs.data ?? []).filter((j) => j.account_id === a.id).slice(0, 10).length === 0 ? <p className="mt-2 text-xs text-muted-foreground">{jobs.error ? "Could not load history." : "No syncs yet."}</p> : (
+                      <table className="num mt-2 w-full text-xs"><thead className="text-muted-foreground"><tr><th className="text-left">Source</th><th>Imported</th><th>Skipped</th><th className="text-right">Time</th></tr></thead>
+                        <tbody>{(jobs.data ?? []).filter((j) => j.account_id === a.id).slice(0, 10).map((j) => (
+                          <tr key={j.id}><td>{j.source}</td><td className="text-center">{j.rows_imported}</td><td className="text-center">{j.rows_skipped}</td><td className="text-right">{formatDistanceToNow(new Date(j.created_at))} ago</td></tr>))}</tbody></table>
+                    )}
+                  </details>
                 </div>
               ))}
             </div>
@@ -112,12 +172,22 @@ function AccountsPage() {
         </Card>
       </div>
 
-      <Card title="Connect your broker (MT4 / MT5 / cTrader / any bridge)" className="mt-4">
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>Click <b>Connect</b> on an account to get its private API key.</li>
-          <li>Send closed (or open) trades as JSON to the endpoint below with header <code>x-api-key</code>.</li>
-          <li>Re-sending the same ticket (<code>external_id</code>) updates it — no duplicates. Trades appear live.</li>
+      <Card title="Automatic sync with MetaTrader" className="mt-4">
+        {isPreview && <p className="mb-3 rounded-md border border-gold/50 bg-gold/10 p-2 text-sm text-gold">Open the published site to get the correct endpoint</p>}
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+          <li>Click <b>Connect</b> (or <b>Rotate key</b>) on an account above and copy the API key.</li>
+          <li>Download the Expert Advisor:
+            <span className="ml-2 inline-flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => downloadEa("mq5")}><Download className="h-4 w-4" />MT5</Button>
+              <Button size="sm" variant="outline" onClick={() => downloadEa("mq4")}><Download className="h-4 w-4" />MT4</Button>
+            </span></li>
+          <li>In MetaTrader choose <b>File &gt; Open Data Folder</b>, copy the file into <code>MQL5/Experts</code> (MT5) or <code>MQL4/Experts</code> (MT4), then restart MetaTrader or refresh the Navigator.</li>
+          <li>Go to <b>Tools &gt; Options &gt; Expert Advisors</b>, tick <b>Allow WebRequest for listed URL</b> and add <code className="num">{origin}</code>.</li>
+          <li>Drag <b>EdgeLogSync</b> onto any chart, paste the API key in its inputs, and make sure the <b>Algo Trading</b> button is on.</li>
         </ol>
+        <p className="mt-3 text-xs text-muted-foreground">MetaTrader must stay open for syncing to run — a Windows VPS is the usual solution. The MetaTrader mobile app cannot run Expert Advisors.</p>
+        <details className="mt-4">
+          <summary className="label-mono cursor-pointer text-muted-foreground">Other methods</summary>
         <pre className="num mt-4 overflow-x-auto rounded-lg bg-background p-4 text-xs">{`curl -X POST ${endpoint} \\
   -H "Content-Type: application/json" -H "x-api-key: YOUR_KEY" \\
   -d '[{"external_id":"123456","symbol":"XAUUSD","direction":"buy",
@@ -142,6 +212,7 @@ for d in deals:
         "gross_pnl": d.profit, "commission": d.commission + o.commission, "swap": d.swap})
 for i in range(0, len(out), 500):
     print(requests.post(URL, json=out[i:i+500], headers={"x-api-key": KEY}).json())`}</pre>
+        </details>
       </Card>
 
       <CsvImport accounts={accounts} />
@@ -202,7 +273,7 @@ function CsvImport({ accounts }: { accounts: Account[] }) {
       const n = (s: string) => (s === "" ? null : Number(s.replace(/\s/g, "").replace(",", ".")));
       const errors: string[] = [];
       const rows = data.slice(1).flatMap((r, idx) => {
-        const symbol = get(r, "symbol").toUpperCase();
+        const symbol = normalizeSymbol(get(r, "symbol"));
         const d = get(r, "direction").toLowerCase();
         const direction = d.startsWith("b") || d === "long" ? "long" : d.startsWith("s") ? "short" : null;
         const entry = n(get(r, "entry_price"));
@@ -220,6 +291,7 @@ function CsvImport({ accounts }: { accounts: Account[] }) {
           entry_price: entry, exit_price: exit, stop_loss: sl, take_profit: tp, lot_size: n(get(r, "lot_size")) || 0.01,
           gross_pnl: n(get(r, "gross_pnl")) ?? 0, commission: n(get(r, "commission")) ?? 0, swap: n(get(r, "swap")) ?? 0,
           pips: calcPips(symbol, direction, entry, exit), planned_rr: plannedRR(entry, sl, tp), session: sessionOf(opened),
+          r_multiple: closedTradeR(direction, entry, sl, exit),
         }];
       });
       let imported = 0;
@@ -242,7 +314,7 @@ function CsvImport({ accounts }: { accounts: Account[] }) {
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1"><Label>Account</Label>
           <Select value={acc} onValueChange={setAcc}><SelectTrigger className="w-48"><SelectValue placeholder="Choose" /></SelectTrigger>
-            <SelectContent>{accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent></Select></div>
+            <SelectContent>{accounts.filter((a) => !a.is_archived).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent></Select></div>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm hover:border-primary">
           <Upload className="h-4 w-4" /> Choose CSV
           <input type="file" accept=".csv,text/csv,.txt" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />

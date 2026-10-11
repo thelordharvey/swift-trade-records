@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { calcPips, plannedRR, sessionOf } from "@/lib/calc";
+import { calcPips, closedTradeR, normalizeSymbol, plannedRR, sessionOf } from "@/lib/calc";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "content-type, x-api-key",
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -24,7 +24,10 @@ const tradeSchema = z.object({
   swap: z.coerce.number().optional().default(0),
   gross_pnl: z.coerce.number().optional().default(0),
 });
-const bodySchema = z.union([z.array(tradeSchema).min(1).max(500), z.object({ trades: z.array(tradeSchema).min(1).max(500) }).transform((b) => b.trades)]);
+const bodySchema = z.union([
+  z.array(z.unknown()).min(1).max(500),
+  z.object({ trades: z.array(z.unknown()).min(1).max(500) }).transform((b) => b.trades),
+]);
 
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -32,44 +35,79 @@ async function sha256(s: string) {
 }
 const iso = (s: string) => new Date(s.includes("T") ? s : s.replace(" ", "T") + "Z").toISOString();
 
+async function findAccount(request: Request) {
+  const key = request.headers.get("x-api-key") ?? "";
+  if (!/^el_[a-f0-9]{48}$/.test(key)) return { error: json({ ok: false, error: "Missing or invalid x-api-key" }, 401) } as const;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: acc, error } = await supabaseAdmin.from("accounts").select("id,user_id,name,last_sync_at").eq("ingest_api_key_hash", await sha256(key)).maybeSingle();
+  if (error) { console.error(error); return { error: json({ ok: false, error: "Server error, try again" }, 500) } as const; }
+  if (!acc) return { error: json({ ok: false, error: "Unknown API key" }, 401) } as const;
+  return { acc, db: supabaseAdmin } as const;
+}
+
 export const Route = createFileRoute("/api/public/ingest")({
   server: {
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      GET: async ({ request }) => {
+        const r = await findAccount(request);
+        if ("error" in r) return r.error;
+        return json({ ok: true, account: r.acc.name, last_sync_at: r.acc.last_sync_at });
+      },
       POST: async ({ request }) => {
-        const key = request.headers.get("x-api-key") ?? "";
-        if (!/^el_[a-f0-9]{48}$/.test(key)) return json({ error: "Missing or invalid x-api-key" }, 401);
+        const r = await findAccount(request);
+        if ("error" in r) return r.error;
+        const { acc, db } = r;
         let raw: unknown;
-        try { raw = await request.json(); } catch { return json({ error: "Body must be JSON" }, 400); }
-        const parsed = bodySchema.safeParse(raw);
-        if (!parsed.success) return json({ error: "Validation failed", issues: parsed.error.issues.slice(0, 20) }, 400);
+        try { raw = await request.json(); } catch { return json({ ok: false, error: "Body must be JSON" }, 400); }
+        const body = bodySchema.safeParse(raw);
+        if (!body.success) return json({ ok: false, error: "Body must be an array of 1-500 trades" }, 400);
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: acc, error: accErr } = await supabaseAdmin.from("accounts").select("id,user_id").eq("ingest_api_key_hash", await sha256(key)).maybeSingle();
-        if (accErr) { console.error(accErr); return json({ error: "Lookup failed" }, 500); }
-        if (!acc) return json({ error: "Unknown API key" }, 401);
+        let rejected = 0;
+        const valid = body.data.flatMap((item) => {
+          const p = tradeSchema.safeParse(item);
+          if (!p.success) { rejected++; return []; }
+          return [p.data];
+        });
 
-        const rows = parsed.data.map((t) => {
+        let rows = valid.map((t) => {
           const dir = t.direction as "long" | "short";
+          const symbol = normalizeSymbol(t.symbol);
           const opened = iso(t.opened_at);
           const exit = t.exit_price ?? null;
+          const sl = t.stop_loss || null, tp = t.take_profit || null;
           return {
             user_id: acc.user_id, account_id: acc.id, external_id: t.external_id, source: "api",
-            symbol: t.symbol.toUpperCase(), direction: dir,
+            symbol, direction: dir,
             status: exit != null ? "closed" : "open",
             opened_at: opened, closed_at: exit != null && t.closed_at ? iso(t.closed_at) : exit != null ? opened : null,
-            entry_price: t.entry_price, exit_price: exit, stop_loss: t.stop_loss || null, take_profit: t.take_profit || null,
+            entry_price: t.entry_price, exit_price: exit, stop_loss: sl, take_profit: tp,
             lot_size: t.lot_size, gross_pnl: t.gross_pnl, commission: t.commission, swap: t.swap,
-            pips: calcPips(t.symbol, dir, t.entry_price, exit),
-            planned_rr: plannedRR(t.entry_price, t.stop_loss || null, t.take_profit || null),
+            pips: calcPips(symbol, dir, t.entry_price, exit),
+            planned_rr: plannedRR(t.entry_price, sl, tp),
+            r_multiple: closedTradeR(dir, t.entry_price, sl, exit),
             session: sessionOf(opened),
           };
         });
-        const { error, count } = await supabaseAdmin.from("trades").upsert(rows, { onConflict: "account_id,external_id", count: "exact" });
-        if (error) { console.error(error); return json({ error: "Insert failed", detail: error.message }, 500); }
-        await supabaseAdmin.from("accounts").update({ last_sync_at: new Date().toISOString() }).eq("id", acc.id);
-        await supabaseAdmin.from("import_jobs").insert({ user_id: acc.user_id, account_id: acc.id, source: "api", rows_total: rows.length, rows_imported: count ?? rows.length });
-        return json({ ok: true, upserted: count ?? rows.length });
+
+        // Never downgrade a stored closed trade back to open.
+        const openIds = rows.filter((x) => x.status === "open").map((x) => x.external_id);
+        if (openIds.length) {
+          const { data: closed, error } = await db.from("trades").select("external_id").eq("account_id", acc.id).eq("status", "closed").in("external_id", openIds);
+          if (error) { console.error(error); return json({ ok: false, error: "Server error, try again" }, 500); }
+          const skip = new Set((closed ?? []).map((c) => c.external_id));
+          rows = rows.filter((x) => !(x.status === "open" && skip.has(x.external_id)));
+        }
+
+        let upserted = 0;
+        if (rows.length) {
+          const { error, count } = await db.from("trades").upsert(rows, { onConflict: "account_id,external_id", count: "exact" });
+          if (error) { console.error(error); return json({ ok: false, error: "Could not save trades, try again" }, 500); }
+          upserted = count ?? rows.length;
+        }
+        await db.from("accounts").update({ last_sync_at: new Date().toISOString() }).eq("id", acc.id);
+        await db.from("import_jobs").insert({ user_id: acc.user_id, account_id: acc.id, source: "api", rows_total: body.data.length, rows_imported: upserted, rows_skipped: rejected });
+        return json({ ok: true, upserted, rejected });
       },
     },
   },

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { accountsQuery, setupsQuery, type Trade } from "@/lib/queries";
-import { calcPips, plannedRR, realizedRR, rMultiple, sessionOf, fmtMoney } from "@/lib/calc";
+import { calcPips, plannedRR, realizedRR, rMultiple, sessionOf, fmtMoney, normalizeSymbol } from "@/lib/calc";
 import { cn } from "@/lib/utils";
 
 const toLocal = (iso?: string | null) => (iso ? format(new Date(iso), "yyyy-MM-dd'T'HH:mm") : "");
@@ -83,7 +83,7 @@ export function TradeDialog({ open, onOpenChange, trade }: { open: boolean; onOp
     const slWrong = entry != null && sl != null && (f.direction === "long" ? sl >= entry : sl <= entry);
     const tpWrong = entry != null && tp != null && (f.direction === "long" ? tp <= entry : tp >= entry);
     return {
-      pips: entry != null && f.symbol ? calcPips(f.symbol, f.direction, entry, exit) : null,
+      pips: entry != null && f.symbol ? calcPips(normalizeSymbol(f.symbol), f.direction, entry, exit) : null,
       prr: entry != null ? plannedRR(entry, sl, tp) : null,
       rrr: entry != null ? realizedRR(f.direction, entry, sl, exit) : null,
       r: rMultiple(net, risk),
@@ -104,7 +104,7 @@ export function TradeDialog({ open, onOpenChange, trade }: { open: boolean; onOp
       setErrors(errs);
       if (Object.keys(errs).length) throw new Error("Please fix the highlighted fields");
 
-      const symbol = f.symbol.toUpperCase().trim();
+      const symbol = normalizeSymbol(f.symbol);
       const opened = new Date(f.opened_at).toISOString();
       const exit = num(f.exit);
       const closed = f.closed_at ? new Date(f.closed_at).toISOString() : exit != null ? opened : null;
@@ -167,7 +167,7 @@ export function TradeDialog({ open, onOpenChange, trade }: { open: boolean; onOp
                   <Label>Account</Label>
                   <Select value={f.account_id} onValueChange={(v) => upd({ account_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Account" /></SelectTrigger>
-                    <SelectContent>{accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{accounts.filter((a) => !a.is_archived).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                   </Select>
                   <Err k="account_id" />
                 </div>
