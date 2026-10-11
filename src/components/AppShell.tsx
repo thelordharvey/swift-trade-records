@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FilterProvider, useFilters, type Range } from "@/lib/filters";
 import { accountsQuery, tradesQuery, type Trade } from "@/lib/queries";
 import { TradeDialog } from "./TradeDialog";
+import { useLiveTrades } from "@/hooks/use-live-trades";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,19 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   // Realtime: trades pushed by the broker API appear live.
-  useEffect(() => {
-    const ch = supabase
-      .channel("trades-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "trades" }, (payload) => {
-        qc.invalidateQueries({ queryKey: ["trades"] });
-        if (payload.eventType === "INSERT") {
-          const t = payload.new as Trade;
-          if (t.source === "api") toast.success(`New ${t.symbol} trade synced from broker`);
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [qc]);
+  useLiveTrades();
 
   // Keyboard: N = new trade
   useEffect(() => {
