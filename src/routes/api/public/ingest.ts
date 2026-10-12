@@ -13,8 +13,8 @@ const tradeSchema = z.object({
   external_id: z.union([z.string(), z.number()]).transform(String).pipe(z.string().min(1).max(64)),
   symbol: z.string().trim().min(2).max(20),
   direction: z.string().transform((d) => d.toLowerCase()).pipe(z.enum(["long", "short", "buy", "sell"])).transform((d) => (d === "buy" ? "long" : d === "sell" ? "short" : d)),
-  opened_at: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/)),
-  closed_at: z.string().nullable().optional(),
+  opened_at: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/)).refine((s) => Number.isFinite(Date.parse(s.includes("T") ? s : s.replace(" ", "T") + "Z")), "Invalid open time"),
+  closed_at: z.string().refine((s) => Number.isFinite(Date.parse(s.includes("T") ? s : s.replace(" ", "T") + "Z")), "Invalid close time").nullable().optional(),
   entry_price: z.coerce.number().positive(),
   exit_price: z.coerce.number().positive().nullable().optional(),
   stop_loss: z.coerce.number().nullable().optional(),
@@ -25,8 +25,8 @@ const tradeSchema = z.object({
   gross_pnl: z.coerce.number().optional().default(0),
 });
 const bodySchema = z.union([
-  z.array(z.unknown()).min(1).max(500),
-  z.object({ trades: z.array(z.unknown()).min(1).max(500) }).transform((b) => b.trades),
+  z.array(z.unknown()).max(500),
+  z.object({ trades: z.array(z.unknown()).max(500) }).transform((b) => b.trades),
 ]);
 
 async function sha256(s: string) {
@@ -39,7 +39,7 @@ async function findAccount(request: Request) {
   const key = request.headers.get("x-api-key") ?? "";
   if (!/^el_[a-f0-9]{48}$/.test(key)) return { error: json({ ok: false, error: "Missing or invalid x-api-key" }, 401) } as const;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: acc, error } = await supabaseAdmin.from("accounts").select("id,user_id,name,last_sync_at").eq("ingest_api_key_hash", await sha256(key)).maybeSingle();
+  const { data: acc, error } = await supabaseAdmin.from("accounts").select("id,user_id,name,last_sync_at").eq("ingest_api_key_hash", await sha256(key)).eq("is_archived", false).maybeSingle();
   if (error) { console.error(error); return { error: json({ ok: false, error: "Server error, try again" }, 500) } as const; }
   if (!acc) return { error: json({ ok: false, error: "Unknown API key" }, 401) } as const;
   return { acc, db: supabaseAdmin } as const;
@@ -61,7 +61,14 @@ export const Route = createFileRoute("/api/public/ingest")({
         let raw: unknown;
         try { raw = await request.json(); } catch { return json({ ok: false, error: "Body must be JSON" }, 400); }
         const body = bodySchema.safeParse(raw);
-        if (!body.success) return json({ ok: false, error: "Body must be an array of 1-500 trades" }, 400);
+        if (!body.success) return json({ ok: false, error: "Body must be an array of up to 500 trades" }, 400);
+
+        // An empty upload is a terminal heartbeat, including when no positions exist.
+        if (!body.data.length) {
+          const { error } = await db.from("accounts").update({ last_sync_at: new Date().toISOString() }).eq("id", acc.id);
+          if (error) return json({ ok: false, error: "Could not save sync status, try again" }, 500);
+          return json({ ok: true, upserted: 0, rejected: 0 });
+        }
 
         let rejected = 0;
         const valid = body.data.flatMap((item) => {
@@ -89,6 +96,14 @@ export const Route = createFileRoute("/api/public/ingest")({
             session: sessionOf(opened),
           };
         });
+        // PostgreSQL cannot update one conflict target twice in the same batch.
+        const unique = new Map<string, typeof rows[number]>();
+        for (const row of rows) {
+          const previous = unique.get(row.external_id);
+          if (previous?.status === "closed" && row.status === "open") continue;
+          unique.set(row.external_id, row);
+        }
+        rows = [...unique.values()];
 
         // Never downgrade a stored closed trade back to open.
         const openIds = rows.filter((x) => x.status === "open").map((x) => x.external_id);
@@ -105,8 +120,11 @@ export const Route = createFileRoute("/api/public/ingest")({
           if (error) { console.error(error); return json({ ok: false, error: "Could not save trades, try again" }, 500); }
           upserted = count ?? rows.length;
         }
-        await db.from("accounts").update({ last_sync_at: new Date().toISOString() }).eq("id", acc.id);
-        await db.from("import_jobs").insert({ user_id: acc.user_id, account_id: acc.id, source: "api", rows_total: body.data.length, rows_imported: upserted, rows_skipped: rejected });
+        if (rejected > 0) return json({ ok: false, upserted, rejected, error: "Some trades were invalid. Check the terminal log and retry." }, 422);
+        const history = await db.from("import_jobs").insert({ user_id: acc.user_id, account_id: acc.id, source: "api", rows_total: body.data.length, rows_imported: upserted, rows_skipped: rejected });
+        if (history.error) return json({ ok: false, error: "Could not save sync history, try again" }, 500);
+        const heartbeat = await db.from("accounts").update({ last_sync_at: new Date().toISOString() }).eq("id", acc.id);
+        if (heartbeat.error) return json({ ok: false, error: "Could not save sync status, try again" }, 500);
         return json({ ok: true, upserted, rejected });
       },
     },

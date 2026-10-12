@@ -146,7 +146,7 @@ void Sync()
          n++;
       }
    }
-   if(n == 0) { GlobalVariableSet(GVKey(), (double)now); return; }
+    if(n == 0) { if(PostBatch(items, 0, 0)) GlobalVariableSet(GVKey(), (double)now); return; }
    bool ok = true;
    for(int s = 0; s < n; s += 100)
    {
