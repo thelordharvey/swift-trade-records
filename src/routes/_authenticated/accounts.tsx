@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Archive, Copy, Download, KeyRound, Upload } from "lucide-react";
+import { Archive, Copy, Download, KeyRound, Upload, Plug } from "lucide-react";
+import { BrokerConnection } from "@/components/BrokerConnection";
+import { syncState } from "@/lib/sync";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +18,13 @@ import { calcPips, closedTradeR, normalizeSymbol, plannedRR, sessionOf } from "@
 import { Card, ErrorState, LoadingGrid, PageHeader } from "@/components/ui-kit";
 
 function SyncBadge({ at, now }: { at: string | null; now: number }) {
-  const age = at ? now - new Date(at).getTime() : Infinity;
-  const [label, cls] = age < 5 * 60_000 ? ["Live", "border-emerald-500/50 text-emerald-400"] : age < 86_400_000 ? ["Idle", "border-gold/50 text-gold"] : ["Never synced", "border-input text-muted-foreground"];
+  const state = syncState(at, now);
+  const [label, cls] = state === "live" ? ["Live", "border-profit/50 text-profit"] : state === "idle" ? ["Idle", "border-gold/50 text-gold"] : [state === "offline" ? "Offline" : "Never synced", "border-input text-muted-foreground"];
   return <span className={`label-mono ml-1 rounded border px-1.5 py-0.5 text-[10px] ${cls}`}>{label}</span>;
 }
 
 export const Route = createFileRoute("/_authenticated/accounts")({
-  head: () => ({ meta: [{ title: "Accounts & Broker Sync — LordRosen" }, { name: "description", content: "Connect MT4/MT5 and other brokers, import CSV." }] }),
+  head: () => ({ meta: [{ title: "Accounts & Broker Sync — LordRosen" }, { name: "description", content: "Connect MetaTrader accounts, verify live terminal syncing, and import broker statements." }, { property: "og:title", content: "Account Connections — LordRosen" }, { property: "og:description", content: "Secure MetaTrader sync and account connection management." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: AccountsPage,
 });
 
@@ -43,6 +45,7 @@ function AccountsPage() {
   const q = useQuery(accountsQuery());
   const [f, setF] = useState({ name: "", broker: "", platform: "MT5", account_type: "live", currency: "USD", starting_balance: "10000" });
   const [newKey, setNewKey] = useState<{ id: string; key: string } | null>(null);
+  const [connection, setConnection] = useState<{ accountId: string | null } | null>(null);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -59,7 +62,7 @@ function AccountsPage() {
     mutationFn: async (a: Account) => {
       const bytes = crypto.getRandomValues(new Uint8Array(24));
       const key = "el_" + Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-      const { error } = await supabase.from("accounts").update({ ingest_api_key_hash: await sha256(key), ingest_key_prefix: key.slice(0, 9) }).eq("id", a.id);
+      const { error } = await supabase.from("accounts").update({ ingest_api_key_hash: await sha256(key), ingest_key_prefix: key.slice(0, 9), last_sync_at: null }).eq("id", a.id);
       if (error) throw error;
       return { id: a.id, key };
     },
@@ -109,7 +112,7 @@ function AccountsPage() {
 
   return (
     <>
-      <PageHeader title="Accounts & Broker Sync" sub="Connect any broker via the sync API, or import a CSV." />
+      <PageHeader title="Accounts & Broker Sync" sub="Trading accounts" action={<Button onClick={() => setConnection({ accountId: active[0]?.id ?? null })} disabled={!active.length}><Plug className="h-4 w-4" />Connect account</Button>} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Add trading account">
           <form className="grid grid-cols-2 gap-3" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
@@ -127,11 +130,11 @@ function AccountsPage() {
           </form>
         </Card>
         <Card title="Your accounts">
-          {accounts.length === 0 ? <p className="text-sm text-muted-foreground">No accounts yet.</p> : (
+          {active.length === 0 ? <p className="text-sm text-muted-foreground">No active accounts yet.</p> : (
             <div className="space-y-3">
               {active.map((a) => (
                 <div key={a.id} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="font-semibold">{a.name} <SyncBadge at={a.last_sync_at} now={now} /> <span className="text-xs text-muted-foreground">{a.platform} · {a.account_type} · {a.currency}</span></p>
                       <p className="text-xs text-muted-foreground">
@@ -139,7 +142,8 @@ function AccountsPage() {
                       </p>
                     </div>
                     <div className="flex gap-1">
-                    <Button size="sm" variant="outline" onClick={() => genKey.mutate(a)} disabled={genKey.isPending}><KeyRound className="h-4 w-4" />{a.ingest_key_prefix ? "Rotate key" : "Connect"}</Button>
+                    <Button size="sm" variant="outline" onClick={() => setConnection({ accountId: a.id })}><Plug className="h-4 w-4" />{a.ingest_key_prefix ? "Manage sync" : "Connect"}</Button>
+                    {a.ingest_key_prefix && <Button size="icon" variant="ghost" aria-label={`Rotate key for ${a.name}`} title="Rotate sync key" onClick={() => genKey.mutate(a)} disabled={genKey.isPending}><KeyRound className="h-4 w-4" /></Button>}
                     <AlertDialog>
                       <AlertDialogTrigger asChild><Button size="icon" variant="ghost" aria-label="Archive account"><Archive className="h-4 w-4" /></Button></AlertDialogTrigger>
                       <AlertDialogContent>
@@ -181,7 +185,7 @@ function AccountsPage() {
               <Button size="sm" variant="outline" onClick={() => downloadEa("mq5")}><Download className="h-4 w-4" />MT5</Button>
               <Button size="sm" variant="outline" onClick={() => downloadEa("mq4")}><Download className="h-4 w-4" />MT4</Button>
             </span></li>
-          <li>In MetaTrader choose <b>File &gt; Open Data Folder</b>, copy the file into <code>MQL5/Experts</code> (MT5) or <code>MQL4/Experts</code> (MT4), then restart MetaTrader or refresh the Navigator.</li>
+          <li>In MetaTrader choose <b>File &gt; Open Data Folder</b>, copy the file into <code>MQL5/Experts</code> (MT5) or <code>MQL4/Experts</code> (MT4). Open it in MetaEditor and click <b>Compile</b>, then refresh the Navigator.</li>
           <li>Go to <b>Tools &gt; Options &gt; Expert Advisors</b>, tick <b>Allow WebRequest for listed URL</b> and add <code className="num">{origin}</code>.</li>
           <li>Drag <b>EdgeLogSync</b> onto any chart, paste the API key in its inputs, and make sure the <b>Algo Trading</b> button is on.</li>
         </ol>
@@ -216,6 +220,7 @@ for i in range(0, len(out), 500):
       </Card>
 
       <CsvImport accounts={accounts} />
+      {connection && <BrokerConnection key={connection.accountId ?? "new"} accounts={active} accountId={connection.accountId} onClose={() => setConnection(null)} newKey={newKey} generateKey={(a) => genKey.mutate(a)} generating={genKey.isPending} />}
     </>
   );
 }
